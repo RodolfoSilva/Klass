@@ -10,7 +10,7 @@
     // Game Start
     // --------------
 
-    // ECMA-262 5th edition Functions
+    // ECMA-262 5th edition Function
     if (typeof Object.defineProperty !== 'function') {
         Object.defineProperty = function(obj, prop, desc) {
             if ('value' in desc) {

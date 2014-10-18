@@ -1,0 +1,8 @@
+{
+    "name": "klass",
+    "description": "Klass Javascript OO",
+    "author": "Rodolfo Silva <contato@rodolfosilva.com>",
+    "devDependencies": {
+        "qunitjs": "1.15.*"
+    }
+}

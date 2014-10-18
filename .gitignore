@@ -1,0 +1,13 @@
+!.gitignore
+
+##### Global files
+.ftpquota
+*.zip
+*.rar
+.svn
+.DS_Store
+thumbs.db
+error_log
+*~
+
+node_modules
