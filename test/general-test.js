@@ -19,8 +19,8 @@ test("Testa detalhes de herança", function(assert) {
         initialize: function (name) {
             this.name = name;
         },
-        getName: function() {
-            return 'Meu ' + this.parent();
+        getName: function($super) {
+            return 'Meu ' + $super();
         }
     });
 

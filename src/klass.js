@@ -1,4 +1,4 @@
-//     Klass.js 1.0.0
+//     Klass.js 1.1.0
 //     http://rodolfosilva.com
 //     (c) 2014 Rodolfo Silva
 //     Distribuído sob a licença MIT.
@@ -40,7 +40,7 @@
     };
 
     // Versão atual.
-    Klass.VERSION = '1.0.0';
+    Klass.VERSION = '1.1.0';
 
     Klass.create    = function (superclass, definition) {
         if (superclass == null && definition) {
@@ -119,16 +119,31 @@
 
     Klass.inherit   = function (dest, src, fname) {
         if (arguments.length == 3) {
-            var ancestor = dest[fname], descendent = src[fname], method = descendent;
+            var ancestor   = dest[fname],
+                descendent = src[fname],
+                method     = descendent;
+
             descendent = function () {
-                var ref = this.parent; this.parent = ancestor;
-                var result = method.apply(this, arguments);
-                ref ? this.parent = ref : delete this.parent;
-                return result;
+                var that = this;
+                var args = Array.prototype.slice.call(arguments, 0);
+
+                var fnArgsNames = /\(([\s\S]*?)\)/.exec(method)[1].replace(/\s+/g, '').split(/[ ,\n\r\t]+/);
+                    fnArgsNames =  fnArgsNames.length == 1 && !fnArgsNames[0] ? [] : fnArgsNames;;
+
+                if (fnArgsNames[0] == "$super" || fnArgsNames[0] == "$parent") {
+                    args.splice(0, 0, function() { return ancestor.apply(that, arguments); });
+                }
+
+                return method.apply(that, args);
             };
-            // mask the underlying method
-            descendent.valueOf = function () { return method; };
-            descendent.toString = function () { return method.toString(); };
+
+            descendent.valueOf = (function(method) {
+                return function() { return method.valueOf.call(method); };
+            })(method);
+            descendent.toString = (function(method) {
+                return function() { return method.toString.call(method); };
+            })(method);
+
             dest[fname] = descendent;
         } else {
             for (var prop in src) {
@@ -141,28 +156,6 @@
         }
         return dest;
     };
-
-    // Deprecated
-    // Klass.singleton = function () {
-    //     var args = arguments;
-    //     if (args.length == 2 && args[0].getInstance) {
-    //         var Constructor = args[0].getInstance(__extending);
-    //         // we're extending a singleton swap it out for it's class
-    //         if (Constructor) { args[0] = Constructor; }
-    //     }
-    //     return (function (args){
-    //         // store instance and class in private variables
-    //         var instance = false;
-    //         var Constructor = Klass.extend.apply(args.callee, args);
-    //         return {
-    //             getInstance: function () {
-    //                 if (arguments[0] == __extending) return Constructor;
-    //                 if (instance) return instance;
-    //                 return (instance = new Constructor());
-    //             }
-    //         };
-    //     })(args);
-    // };
 
     root.Klass = Klass;
 }());

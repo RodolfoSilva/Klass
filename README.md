@@ -24,9 +24,9 @@ Employee = Class.extend(Person, {
   include: [Sortable, OtherModule],
 
   // initializer function
-  initialize: function(name, dept) {
-    // call parent function
-    this.parent(name);
+  initialize: function($super, name, dept) {
+    // call parent function using $super or $parent
+    $super(name);
 
     // more initialization
     this.dept = dept;
