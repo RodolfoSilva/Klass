@@ -4,11 +4,18 @@
 //     Distribuído sob a licença MIT.
 
 /* Based on Alex Arnell's inheritance implementation. */
-
-(function () {
-    // "use strict";
-    // Game Start
-    // --------------
+(function (global, factory) {
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = factory(global);
+    } else if (typeof define === 'function' && define.amd) {
+        define([], function () {
+            return factory(global);
+        });
+    } else {
+        global.Klass = factory(global);
+    }
+}(typeof window !== 'undefined' ? window : this, function (window) {
+    "use strict";
 
     // ECMA-262 5th edition Function
     if (typeof Object.defineProperty !== 'function') {
@@ -25,9 +32,6 @@
             return obj;
         };
     }
-
-    // Estabelece o objeto raiz (root), `window` no navegador, ou `exports` no servidor.
-    var root = this;
 
     var __extending = {};
 
@@ -84,7 +88,7 @@
             }
         };
 
-        var mixins = [];
+        var mixin, mixins = [];
         if (definition && definition.include) {
             if (definition.include.reverse) {
                 // methods defined in later mixins should override prior
@@ -157,5 +161,5 @@
         return dest;
     };
 
-    root.Klass = Klass;
-}());
+    return Klass;
+}));
