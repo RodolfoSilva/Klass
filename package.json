@@ -2,7 +2,18 @@
     "name": "klass",
     "description": "Klass Javascript OO",
     "author": "Rodolfo Silva <contato@rodolfosilva.com>",
+    "repository": "http://github.com/RodolfoSilva/Klass",
+    "version": "1.1.0",
+    "license": "Licensed under MIT",
+    "info" : {
+        "name" : "Klass.js"
+    },
     "devDependencies": {
+        "grunt": "~0.4.*",
+        "grunt-cli": "~0.1.*",
+        "grunt-contrib-uglify": "~0.3.*",
+        "grunt-contrib-copy": "~0.5.*",
+        "grunt-banner": "~0.2.*",
         "qunitjs": "1.15.*"
     }
 }
