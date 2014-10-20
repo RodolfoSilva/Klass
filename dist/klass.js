@@ -12,7 +12,7 @@
             return factory(global);
         });
     } else {
-        global.Class = factory(global);
+        global.Klass = factory(global);
     }
 }(typeof window !== 'undefined' ? window : this, function (window) {
     "use strict";
@@ -60,6 +60,12 @@
         var parent = null,
             properties = getPropertis(arguments);
 
+        if (properties[0] == null && properties[1]) {
+            throw new Error("superclass is undefined (Klass.create)");
+        } else if (properties[0] == null) {
+            throw new Error("definition is undefined (Klass.create)");
+        }
+
         if (Object.isFunction(properties[0])) {
             parent = properties.shift();
         }
@@ -82,7 +88,7 @@
             Constructor.addMethods(properties[i]);
 
         if (!Constructor.prototype.initialize)
-            Constructor.prototype.initialize = Prototype.emptyFunction;
+            Constructor.prototype.initialize = function() { };
 
         Constructor.prototype.constructor = Constructor;
         return Constructor;
