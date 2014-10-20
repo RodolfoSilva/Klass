@@ -4,7 +4,6 @@
  * Licensed under MIT (http://github.com/RodolfoSilva/Klass/LICENSE)
  */
 
-/* Based on Alex Arnell's inheritance implementation. */
 (function (global, factory) {
     if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
         module.exports = factory(global);
@@ -13,154 +12,221 @@
             return factory(global);
         });
     } else {
-        global.Klass = factory(global);
+        global.Class = factory(global);
     }
 }(typeof window !== 'undefined' ? window : this, function (window) {
     "use strict";
+    var IS_DONTENUM_BUGGY = (function () {
+        for (var p in { toString: 1 }) {
+            // check actual property name, so that it works with augmented Object.prototype
+            if (p === 'toString') {
+                return false;
+            }
+        }
+        return true;
+    }());
 
-    // ECMA-262 5th edition Function
-    if (typeof Object.defineProperty !== 'function') {
-        Object.defineProperty = function(obj, prop, desc) {
-            if ('value' in desc) {
-                obj[prop] = desc.value;
-            }
-            if ('get' in desc) {
-                obj.__defineGetter__(prop, desc.get);
-            }
-            if ('set' in desc) {
-                obj.__defineSetter__(prop, desc.set);
-            }
-            return obj;
-        };
-    }
+    var SubClass = function () {};
 
-    var __extending = {};
+    var getPropertis = function (iterable) {
+        if (!iterable) {
+            return [];
+        }
+        // Safari <2.0.4 crashes when accessing property of a node list with property accessor.
+        // It nevertheless works fine with `in` operator, which is why we use it here
+        if ('toArray' in Object(iterable)) {
+            return iterable.toArray();
+        }
+        var length = iterable.length || 0, results = new Array(length);
+        while (length--) {
+            results[length] = iterable[length];
+        }
+        return results;
+    };
+
 
     // Klass
     // --------------
 
     // Define Klass como um alias para `Klass.create`
     var Klass = function () {
-        return Klass.create.apply(this, arguments);
+        return Klass.create.apply(Klass, arguments);
     };
 
     // Versão atual.
     Klass.VERSION = '1.1.0';
 
-    Klass.create    = function (superclass, definition) {
-        if (superclass == null && definition) {
-            throw new Error("superclass is undefined (Klass.create)");
-        } else if (superclass == null) {
-            throw new Error("definition is undefined (Klass.create)");
+    Klass.create = function () {
+        var parent = null,
+            properties = getPropertis(arguments);
+
+        if (Object.isFunction(properties[0])) {
+            parent = properties.shift();
         }
 
-        // Verifica se é uma class extendida
-        if (arguments.length === 0) {
-            return Klass.create(__extending, definition);
-        } else if (arguments.length === 1 && typeof arguments[0] !== 'function') {
-            return Klass.create(__extending, arguments[0]);
-        }
-
-        var Constructor = function () {
-            if (arguments[0] ==  __extending) return;
+        function Constructor() {
             this.initialize.apply(this, arguments);
-            // Constructor.prototype.initialize.apply(this, arguments);
-        };
-
-        if (typeof(superclass) == 'function') {
-            // Constructor.prototype = new superclass(__extending);
-            Constructor.prototype = superclass.prototype;
         }
 
-        // Constructor.prototype.constructor = Constructor;
-        if (Constructor.prototype.initialize == null) {
-            Constructor.prototype.initialize = function() {
-                if (typeof superclass == 'function')
-                    superclass.apply(this, arguments);
-            };
+        Object.extend(Constructor, {addMethods: Klass.addMethods});
+        Constructor.superclass = parent;
+        Constructor.subclasses = [];
+
+        if (parent) {
+            SubClass.prototype = parent.prototype;
+            Constructor.prototype = new SubClass;
+            parent.subclasses.push(Constructor);
         }
 
-        Constructor.constant = function(name, value) {
-            name = name.toUpperCase();
-            if (typeof value != 'undefined') {
-                Object.defineProperty(Constructor, name, { value: value });
-            } else {
-                return Constructor[name];
-            }
-        };
+        for (var i = 0, length = properties.length; i < length; i++)
+            Constructor.addMethods(properties[i]);
 
-        var mixin, mixins = [];
-        if (definition && definition.include) {
-            if (definition.include.reverse) {
-                // methods defined in later mixins should override prior
-                mixins = mixins.concat(definition.include.reverse());
-            } else {
-                mixins.push(definition.include);
-            }
-            delete definition.include; // clean syntax sugar
-        }
+        if (!Constructor.prototype.initialize)
+            Constructor.prototype.initialize = Prototype.emptyFunction;
 
-        if (definition)
-            Klass.inherit(Constructor.prototype, definition);
-
-        for (var i = 0; (mixin = mixins[i]); i++) {
-            Klass.mixin(Constructor.prototype, mixin);
-        }
-
+        Constructor.prototype.constructor = Constructor;
         return Constructor;
-    };
+    }
 
-    Klass.mixin     = function (dest, src, clobber) {
-        clobber = clobber || false;
-        if (typeof(src) != 'undefined' && src !== null) {
-            for (var prop in src) {
-                if (clobber || (!dest[prop] && typeof(src[prop]) == 'function')) {
-                    dest[prop] = src[prop];
-                }
+    Klass.addMethods = function (source) {
+        var ancestor   = this.superclass && this.superclass.prototype,
+            properties = Object.keys(source);
+
+        if (IS_DONTENUM_BUGGY) {
+            if (source.toString != Object.prototype.toString) {
+                properties.push('toString');
+            }
+            if (source.valueOf != Object.prototype.valueOf) {
+                properties.push('valueOf');
             }
         }
-        return dest;
-    };
 
-    Klass.inherit   = function (dest, src, fname) {
-        if (arguments.length == 3) {
-            var ancestor   = dest[fname],
-                descendent = src[fname],
-                method     = descendent;
+        for (var i = 0, length = properties.length; i < length; i++) {
+            var property = properties[i], value = source[property];
+            var argumentsNames = value.argumentNames();
+            if (ancestor && Object.isFunction(value) &&
+            (argumentsNames[0] == "$super" || argumentsNames[0] == "$parent")) {
+                var method = value;
+                value = (function (m) {
+                    return function () {
+                        return ancestor[m].apply(this, arguments);
+                    };
+                })(property).wrap(method);
 
-            descendent = function () {
-                var that = this;
-                var args = Array.prototype.slice.call(arguments, 0);
+                value.valueOf = (function (method) {
+                    return function () {
+                        return method.valueOf.call(method);
+                    };
+                })(method);
 
-                var fnArgsNames = /\(([\s\S]*?)\)/.exec(method)[1].replace(/\s+/g, '').split(/[ ,\n\r\t]+/);
-                    fnArgsNames =  fnArgsNames.length == 1 && !fnArgsNames[0] ? [] : fnArgsNames;;
-
-                if (fnArgsNames[0] == "$super" || fnArgsNames[0] == "$parent") {
-                    args.splice(0, 0, function() { return ancestor.apply(that, arguments); });
-                }
-
-                return method.apply(that, args);
-            };
-
-            descendent.valueOf = (function(method) {
-                return function() { return method.valueOf.call(method); };
-            })(method);
-            descendent.toString = (function(method) {
-                return function() { return method.toString.call(method); };
-            })(method);
-
-            dest[fname] = descendent;
-        } else {
-            for (var prop in src) {
-                if (dest[prop] && typeof(src[prop]) == 'function') {
-                    Klass.inherit(dest, src, prop);
-                } else {
-                    dest[prop] = src[prop];
-                }
+                value.toString = (function (method) {
+                    return function () { return method.toString.call(method); };
+                })(method);
             }
+            this.prototype[property] = value;
         }
-        return dest;
-    };
+        return this;
+    }
 
     return Klass;
 }));
+
+// ECMA5 & ECMA6
+if (typeof Function.prototype.bind !== 'function') {
+    Function.prototype.bind = function (thisObject) {
+        var func = this;
+        var args = Array.prototype.slice.call(arguments, 1);
+        var Nop = function () {
+        };
+        var bound = function () {
+            var a = args.concat(Array.prototype.slice.call(arguments));
+            return func.apply(
+                this instanceof Nop ? this : thisObject || window, a);
+        };
+        Nop.prototype = func.prototype;
+        bound.prototype = new Nop();
+        return bound;
+    };
+}
+
+if (typeof Object.extend !== 'function') {
+    Object.extend = function (destination, source) {
+        for (var property in source) {
+            destination[property] = source[property];
+        }
+        return destination;
+    };
+}
+
+if (typeof Object.isFunction !== 'function') {
+    Object.isFunction = function (object) {
+        return Object.prototype.toString.call(object) === '[object Function]';
+    };
+}
+
+// From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys
+if (!Object.keys) {
+    Object.keys = (function () {
+        'use strict';
+        var hasOwnProperty = Object.prototype.hasOwnProperty,
+            hasDontEnumBug = !({ toString: null }).propertyIsEnumerable('toString'),
+            dontEnums = [
+                'toString',
+                'toLocaleString',
+                'valueOf',
+                'hasOwnProperty',
+                'isPrototypeOf',
+                'propertyIsEnumerable',
+                'constructor'
+            ],
+            dontEnumsLength = dontEnums.length;
+
+        return function (obj) {
+            if (typeof obj !== 'object' && (typeof obj !== 'function' || obj === null)) {
+                throw new TypeError('Object.keys called on non-object');
+            }
+
+            var result = [], prop, i;
+
+            for (prop in obj) {
+                if (hasOwnProperty.call(obj, prop)) {
+                    result.push(prop);
+                }
+            }
+
+            if (hasDontEnumBug) {
+                for (i = 0; i < dontEnumsLength; i++) {
+                    if (hasOwnProperty.call(obj, dontEnums[i])) {
+                        result.push(dontEnums[i]);
+                    }
+                }
+            }
+            return result;
+        };
+    }());
+}
+
+if (typeof Function.prototype.argumentNames !== 'function') {
+    Object.prototype.argumentNames = function () {
+        var names = this.toString().match(/^[\s\(]*function[^(]*\(([^)]*)\)/)[1]
+                    .replace(/\/\/.*?[\r\n]|\/\*(?:.|[\r\n])*?\*\//g, '')
+                    .replace(/\s+/g, '').split(',');
+        return names.length == 1 && !names[0] ? [] : names;
+    };
+}
+
+if (typeof Function.prototype.wrap !== 'function') {
+    Object.prototype.wrap = function (wrapper) {
+        var __method = this;
+        return function () {
+            var a = (function (array, args) {
+                var arrayLength = array.length, length = args.length;
+                while (length--) {
+                    array[arrayLength + length] = args[length];
+                }
+                return array;
+            }([__method.bind(this)], arguments));
+            return wrapper.apply(this, a);
+        }
+    };
+}
