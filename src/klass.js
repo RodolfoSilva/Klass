@@ -213,7 +213,7 @@ if (!Object.keys) {
 }
 
 if (typeof Function.prototype.argumentNames !== 'function') {
-    Object.prototype.argumentNames = function () {
+    Function.prototype.argumentNames = function () {
         var names = this.toString().match(/^[\s\(]*function[^(]*\(([^)]*)\)/)[1]
                     .replace(/\/\/.*?[\r\n]|\/\*(?:.|[\r\n])*?\*\//g, '')
                     .replace(/\s+/g, '').split(',');
@@ -222,7 +222,7 @@ if (typeof Function.prototype.argumentNames !== 'function') {
 }
 
 if (typeof Function.prototype.wrap !== 'function') {
-    Object.prototype.wrap = function (wrapper) {
+    Function.prototype.wrap = function (wrapper) {
         var __method = this;
         return function () {
             var a = (function (array, args) {
